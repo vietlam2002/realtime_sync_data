@@ -1,0 +1,129 @@
+version: "3.9"
+
+services:
+  broker-kafka1:
+    image: confluentinc/cp-kafka
+    container_name: broker-kafka1
+    hostname: broker-kafka1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_LISTENERS: "INTERNAL://broker-kafka1:29092,CONTROLLER://broker-kafka1:29093,EXTERNAL://0.0.0.0:9092"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://broker-kafka1:29092,EXTERNAL://10.6.201.222:9092"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker-kafka1:29093,2@broker-kafka2:29093,3@broker-kafka3:29093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
+      CLUSTER_ID: "p8fFEbKGQ22B6M_Da_vCBw"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs" 
+    networks:
+      - sync_pipeline
+
+  broker-kafka2:
+    image: confluentinc/cp-kafka
+    container_name: broker-kafka2
+    hostname: broker-kafka2
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_LISTENERS: "INTERNAL://broker-kafka2:29092,CONTROLLER://broker-kafka2:29093,EXTERNAL://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://broker-kafka2:29092,EXTERNAL://10.6.201.222:9093"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker-kafka1:29093,2@broker-kafka2:29093,3@broker-kafka3:29093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 2
+      CLUSTER_ID: "p8fFEbKGQ22B6M_Da_vCBw"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+    networks:
+      - sync_pipeline
+
+  broker-kafka3:
+    image: confluentinc/cp-kafka
+    container_name: broker-kafka3
+    hostname: broker-kafka3
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_LISTENERS: "INTERNAL://broker-kafka3:29092,CONTROLLER://broker-kafka3:29093,EXTERNAL://0.0.0.0:9094"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://broker-kafka3:29092,EXTERNAL://10.6.201.222:9094"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker-kafka1:29093,2@broker-kafka2:29093,3@broker-kafka3:29093"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      CLUSTER_ID: "p8fFEbKGQ22B6M_Da_vCBw"
+      KAFKA_LOG_DIRS: "/tmp/kraft-combined-logs"
+    networks:
+      - sync_pipeline
+
+  kafka-ui-container:
+    container_name: kafka-ui-container
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8085:8080
+    depends_on:
+      - broker-kafka1
+      - broker-kafka2
+      - kafka-schema-registry
+      - connect
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "broker-kafka1:29092,broker-kafka2:29092"
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://kafka-schema-registry:8081
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+      DYNAMIC_CONFIG_ENABLED: "true"
+    networks:
+      - sync_pipeline
+
+  kafka-schema-registry:
+    image: confluentinc/cp-schema-registry
+    container_name: kafka-schema-registry
+    hostname: kafka-schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: kafka-schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "broker-kafka1:29092,broker-kafka2:29092,broker-kafka3:29092"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+    depends_on:
+      - broker-kafka1
+      - broker-kafka2
+      - broker-kafka3
+    networks:
+      - sync_pipeline
+
+  connect:
+    build:
+      context: ./connect
+      dockerfile: Dockerfile
+    ports:
+      - 8083:8083
+    depends_on:
+      - broker-kafka1
+      - broker-kafka2
+      - broker-kafka3
+    environment:
+      - BOOTSTRAP_SERVERS=broker-kafka1:29092,broker-kafka2:29092,broker-kafka3:29092
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=my_connect_configs
+      - OFFSET_STORAGE_TOPIC=my_connect_offsets
+      - STATUS_STORAGE_TOPIC=my_connect_statuses
+    networks:
+      - sync_pipeline
+networks:
+    sync_pipeline:
