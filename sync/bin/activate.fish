@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/home/vietlam/Desktop/code/Python/sync_pipeline/sync"
+set -gx VIRTUAL_ENV "/home/vietlam/Desktop/My_Repository/sync_pipeline/sync"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH
