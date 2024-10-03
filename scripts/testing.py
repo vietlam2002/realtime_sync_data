@@ -1,75 +1,79 @@
+from kafka import KafkaConsumer
 import json
 import psycopg2
-from kafka import KafkaConsumer
 from datetime import datetime, timedelta
 
-# Cấu hình kết nối đến PostgreSQL
+# Config connector PostgreSQL
 conn_params = {
     'dbname': 'postgres',
     'user': 'postgres',
     'password': 'password',
     'host': 'localhost',
-    'port': '3000'  # Port PostgreSQL
+    'port': '3000'
 }
+conn = psycopg2.connect(**conn_params)
+cursor = conn.cursor()
 
-# Kết nối tới PostgreSQL
-try:
-    conn = psycopg2.connect(**conn_params)
-    cursor = conn.cursor()
-    print("Kết nối tới PostgreSQL thành công.")
-except Exception as e:
-    print(f"Lỗi khi kết nối tới PostgreSQL: {e}")
-
-# Tạo Kafka Consumer để lấy dữ liệu từ topic
+# Create Kafka Consumer
 consumer = KafkaConsumer(
-    'demo.public.dev_data_integration_pipeline_load_data_from_postgres_v1',  # Tên Kafka topic
+    'demo1.public.orders',
     bootstrap_servers=['localhost:9092'],
-    auto_offset_reset='earliest',  # Đọc từ message đầu tiên
+    auto_offset_reset='earliest',
     enable_auto_commit=True,
-    group_id='unique_consumer_group_test',
+    group_id='unique_consumer_group_test1',
     value_deserializer=lambda x: json.loads(x.decode('utf-8')) if x is not None else None
 )
 
-print("Đang lắng nghe các message từ Kafka...")
+print("Listening to topic...")
 
-# Hàm chèn dữ liệu vào PostgreSQL
-def insert_data_to_postgres(data):
+# Save to PostgreSQL
+def save_to_postgres(data, operation):
     try:
-        # Chuyển đổi định dạng ngày từ timestamp (nếu có)
-        order_date_raw = data.get("order_date", None)
-        order_date = None
-        if order_date_raw:
-            order_date = datetime(1970, 1, 1) + timedelta(days=order_date_raw)
+        order_date_raw = data["order_date"]
+        order_date = datetime(1970, 1, 1) + timedelta(days=order_date_raw)
 
-        # Câu truy vấn chèn dữ liệu vào PostgreSQL
-        insert_query = """
-        INSERT INTO public.test_orders (order_id, customer_name, customer_phone, delivery_address, food_item, order_date, quantity, total_price) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """
-        cursor.execute(insert_query, (
-            data["order_id"], 
-            data["customer_name"], 
-            data["customer_phone"], 
-            data["delivery_address"], 
-            data["food_item"], 
-            order_date, 
-            data["quantity"], 
-            data["total_price"]
-        ))
-
+        if operation == 'c' or operation == 'u':  
+            insert_query = """
+            INSERT INTO public.test_orders (order_id, customer_name, customer_phone, delivery_address, food_item, order_date, quantity, total_price) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (order_id) 
+            DO UPDATE SET 
+                customer_name = EXCLUDED.customer_name,
+                customer_phone = EXCLUDED.customer_phone,
+                delivery_address = EXCLUDED.delivery_address,
+                food_item = EXCLUDED.food_item,
+                order_date = EXCLUDED.order_date,
+                quantity = EXCLUDED.quantity,
+                total_price = EXCLUDED.total_price;
+            """
+            cursor.execute(insert_query, (data["order_id"], data["customer_name"], data["customer_phone"], data["delivery_address"], data["food_item"], order_date, data["quantity"], data["total_price"]))
+        elif operation == 'd':  
+            delete_query = """
+            DELETE FROM public.test_orders WHERE order_id = %s;
+            """
+            cursor.execute(delete_query, (data["order_id"],))
         conn.commit()
-        print(f"Đã chèn message vào Postgres: {data}")
-
+        print(f"Saved data to Postgres: {data}")
     except Exception as e:
-        print(f"Lỗi khi chèn dữ liệu vào Postgres: {e}")
+        print(f"Error saving to Postgres: {e}")
         conn.rollback()
 
-# Lắng nghe các message từ Kafka và lưu vào PostgreSQL
+
+# Data transform Kafka messages
 for message in consumer:
     if message.value is not None:
-        print(f"Nhận được message: {message.value}")
-        insert_data_to_postgres(message.value)  # Chèn dữ liệu vào PostgreSQL
+        # print(f"Received message: {message.value}")
+        # print(f"Partition: {message.partition}, Offset: {message.offset}, Timestamp: {message.timestamp}")
+        
+        operation = message.value.get('op') 
+        after_data = message.value.get('after')  
+        before_data = message.value.get('before')  
+        
+        if operation in ['c', 'u'] and after_data:
+            save_to_postgres(after_data, operation)  
+        elif operation == 'd' and before_data:
+            save_to_postgres(before_data, operation)  
 
-# Đóng kết nối khi hoàn thành
+# Close connect
 cursor.close()
 conn.close()

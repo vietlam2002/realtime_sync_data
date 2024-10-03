@@ -16,7 +16,7 @@ cursor = conn.cursor()
 
 # Create Kafka Consumer
 consumer = KafkaConsumer(
-    'demo.public.dev_data_integration_pipeline_load_data_from_postgres_v1',
+    'demo.public.orders',
     bootstrap_servers=['localhost:9092'],
     auto_offset_reset='earliest',
     enable_auto_commit=True,
