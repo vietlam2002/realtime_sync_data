@@ -1,0 +1,3 @@
+{"operation": "create", "resource": {"type": "pipeline", "uuid": "sync_stream"}, "timestamp": 1728622225, "user": null}
+{"operation": "create", "resource": {"type": "pipeline", "uuid": "test_sync"}, "timestamp": 1728630183, "user": null}
+{"operation": "create", "resource": {"type": "pipeline", "uuid": "sync_stream"}, "timestamp": 1728631255, "user": null}

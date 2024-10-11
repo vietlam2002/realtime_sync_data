@@ -1,0 +1,8 @@
+connector_type: postgres
+database: postgres
+host: 10.6.201.222
+password: password
+port: 2000
+schema: public
+username: postgres
+table: inventory_customer

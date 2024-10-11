@@ -1,0 +1,8 @@
+connector_type: postgres
+database: database
+host: host
+password: password
+port: 2000
+schema: schema
+username: p
+table: table

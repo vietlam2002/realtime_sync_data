@@ -6,6 +6,8 @@ services:
      - 2181:2181
      - 2888:2888
      - 3888:3888
+    networks:
+      - mage_ai_kafka
   kafka:
     image: quay.io/debezium/kafka:${DEBEZIUM_VERSION}
     container_name: demo_kafka
@@ -15,6 +17,8 @@ services:
      - zookeeper
     environment:
      - ZOOKEEPER_CONNECT=zookeeper:2181
+    networks:
+      - mage_ai_kafka
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: demo_kafka-ui
@@ -25,6 +29,8 @@ services:
      - "9089:8080"
     links:
      - kafka
+    networks:
+      - mage_ai_kafka
   mysql:
     image: quay.io/debezium/example-mysql:${DEBEZIUM_VERSION}
     ports:
@@ -33,6 +39,8 @@ services:
      - MYSQL_ROOT_PASSWORD=debezium
      - MYSQL_USER=mysqluser
      - MYSQL_PASSWORD=mysqlpw
+    networks:
+      - mage_ai_kafka
   connect:
     image: quay.io/debezium/connect:${DEBEZIUM_VERSION}
     ports:
@@ -46,3 +54,28 @@ services:
      - CONFIG_STORAGE_TOPIC=my_connect_configs
      - OFFSET_STORAGE_TOPIC=my_connect_offsets
      - STATUS_STORAGE_TOPIC=my_connect_statuses
+    networks:
+      - mage_ai_kafka
+  magic:
+    image: mageai/mageai:latest
+    command: mage start ${PROJECT_NAME}
+    env_file:
+      - mage-ai/.env
+    build:
+      context: ./mage-ai
+      dockerfile: Dockerfile
+    environment:
+      USER_CODE_PATH: /home/src/${PROJECT_NAME}
+      ENV: ${ENV}
+    ports:
+      - 6789:6789
+    links:
+      - kafka
+      - mysql
+    volumes:
+      - .:/home/src/
+    restart: on-failure:5
+    networks:
+      - mage_ai_kafka
+networks:
+  mage_ai_kafka:

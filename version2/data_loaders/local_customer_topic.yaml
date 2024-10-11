@@ -1,0 +1,25 @@
+connector_type: kafka
+bootstrap_server: kafka:9092
+topic: dbserver1.inventory.customers
+consumer_group: unique_consumer_group
+include_metadata: false
+api_version: 0.10.2
+offset:
+  value: earliest
+  type: string
+  partitions:
+    - topic: dbserver1.inventory.customers
+      partition: 0
+config:
+  connector_type: kafka
+  bootstrap_server: kafka:9092
+  topic: dbserver1.inventory.customers
+  consumer_group: unique_consumer_group
+  include_metadata: false
+  api_version: 0.10.2
+  offset:
+    value: earliest
+    type: string
+    partitions:
+      - topic: dbserver1.inventory.customers
+        partition: 0
